@@ -9,6 +9,5 @@ Require-Bundle: org.adempiere.base;bundle-version="3.0.0",
  org.adempiere.ui.zk
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 Import-Package: org.osgi.service.event
-Service-Component: OSGI-INF/validatorrelatedproduct.xml,OSGI-INF/bxmodelfactory.xml,OSGI-INF/invoicewindowvalidator.xml,
- OSGI-INF/salesorderwindowvalidator.xml
+Service-Component: OSGI-INF/validatorrelatedproduct.xml,OSGI-INF/bxmodelfactory.xml
 Bundle-ActivationPolicy: lazy

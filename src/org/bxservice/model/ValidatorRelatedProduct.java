@@ -25,10 +25,9 @@
 
 package org.bxservice.model;
 
-import java.util.logging.Level;
-
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
+import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
 import org.compiere.model.MOrder;
@@ -36,7 +35,6 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.PO;
 import org.compiere.util.CLogger;
-import org.compiere.util.Env;
 import org.osgi.service.event.Event;
 
 public class ValidatorRelatedProduct extends AbstractEventHandler{
@@ -70,89 +68,102 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				(type.equals(IEventTopics.PO_AFTER_NEW) || 
 						type.equals(IEventTopics.PO_AFTER_CHANGE) ) ) {
 
-			MInvoiceLine invoiceLine = (MInvoiceLine)po;
-			MInvoice invoice = (MInvoice) invoiceLine.getC_Invoice();
-			MProduct product = MProduct.get (Env.getCtx(), invoiceLine.getM_Product_ID());
-			int lineNo = invoiceLine.getLine();
+			createSupplementalInvoiceLines((MInvoiceLine)po, type);
 
-			if ( invoice.isSOTrx() ){
-				try {
-					//If the record was modified delete previous supplementary lines to avoid repeated values
-					if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
-						for(MInvoiceLine line :invoice.getLines()){
-							if( line.get_Value("Bay_MasterInvoiceLine_ID")!=null && 
-									line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID()) ){
-								line.deleteEx(true, invoice.get_TrxName());
-							}
-						}
-					}
-
-					for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product))
-					{
-						if(related.get_Value("C_UOM_ID") == null || 
-								related.get_Value("C_UOM_ID").equals("") || 
-								related.get_Value("C_UOM_ID").equals(invoiceLine.getC_UOM_ID())){
-
-							MInvoiceLine newLine = new MInvoiceLine(invoice);
-							newLine.setLine(++lineNo);
-							newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-							newLine.setQty(invoiceLine.getQtyInvoiced());
-							if (related.getDescription() != null)
-								newLine.setDescription(related.getDescription());
-							newLine.setPrice();
-							newLine.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", invoiceLine.get_ID());
-							newLine.save(invoice.get_TrxName());
-						}
-					}
-				} catch (Exception e) {
-					log.log(Level.SEVERE, "Error creating invoice line for invoice "+invoice.get_ID(), e);
-				}
-
-			}
 		}
 		if (po instanceof MOrderLine && 
 				(type.equals(IEventTopics.PO_AFTER_NEW) || 
 						type.equals(IEventTopics.PO_AFTER_CHANGE) ) ) {
 
-			MOrderLine orderLine = (MOrderLine)po;
-			MOrder order = (MOrder) orderLine.getC_Order();
-			MProduct product = MProduct.get (Env.getCtx(), orderLine.getM_Product_ID());
-			int lineNo = orderLine.getLine();
+			createSupplementalOrderLines((MOrderLine)po, type);
 
-			if ( order.isSOTrx() ){
-				try {
-					//If the record was modified delete previous supplementary lines to avoid repeated values
-					if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
-						for(MOrderLine line :order.getLines()){
-							if( line.get_Value("Bay_MasterOrderLine_ID")!=null && 
-									line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) ){
-								line.deleteEx(true, order.get_TrxName());
-							}
-						}
-					}
-					
-					for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product))
-					{
-						if(related.get_Value("C_UOM_ID") == null || 
-								related.get_Value("C_UOM_ID").equals("") || 
-								related.get_Value("C_UOM_ID").equals(orderLine.getC_UOM_ID())){
-							
-							MOrderLine newLine = new MOrderLine(order);
-							newLine.setLine(++lineNo);
-							newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-							newLine.setQty(orderLine.getQtyOrdered());
-							if (related.getDescription() != null)
-								newLine.setDescription(related.getDescription());
-							newLine.setPrice();
-							newLine.set_ValueOfColumn("Bay_MasterOrderLine_ID", orderLine.get_ID());
-							newLine.save(order.get_TrxName());
-						}
-					}
-				} catch (Exception e) {
-					log.log(Level.SEVERE, "Error creating order line for order "+order.get_ID(), e);
-				}
-			}
 		}
 	} //doHandleEvent
+
+	public void createSupplementalOrderLines(MOrderLine orderLine, String type){
+
+		MOrder order = orderLine.getParent();
+		MProduct product = orderLine.getProduct();
+		int lineNo = orderLine.getLine();
+
+		if ( order.isSOTrx() ){
+			try {
+				//If the record was modified delete previous supplementary lines to avoid duplicated
+				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
+					for( MOrderLine line : order.getLines() ){
+						if( line.get_Value("Bay_MasterOrderLine_ID")!=null && 
+								line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) ){
+							line.deleteEx(true, order.get_TrxName());
+						}
+					}
+				}
+
+				for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product))
+				{
+					// The conditional UOM works to check if the parent product has that UOM the related product is created. If it's blank it's always created.
+					int conditionalUOM = related.get_ValueAsInt("C_UOM_ID");
+
+					if( conditionalUOM == 0 || conditionalUOM == orderLine.getC_UOM_ID() ){
+
+						MOrderLine newLine = new MOrderLine(order);
+						newLine.setLine(++lineNo);
+						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
+						newLine.setQty(orderLine.getQtyOrdered());
+						if (related.getDescription() != null)
+							newLine.setDescription(related.getDescription());
+						newLine.setPrice();
+						newLine.set_ValueOfColumn("Bay_MasterOrderLine_ID", orderLine.get_ID());
+						newLine.saveEx(order.get_TrxName());
+					}
+				}
+			} catch (Exception e) {
+			     throw new AdempiereException("Error creating order line. Cause: " + e.getLocalizedMessage());
+			}
+		}
+	} //createSupplementalOrderLines
+
+	public void createSupplementalInvoiceLines(MInvoiceLine invoiceLine, String type){
+
+		MInvoice invoice = invoiceLine.getParent();
+		MProduct product = invoiceLine.getProduct();
+		int lineNo = invoiceLine.getLine();
+
+		if ( invoice.isSOTrx() ){
+			try {
+				//If the record was modified delete previous supplementary lines to avoid duplicated
+				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
+					for(MInvoiceLine line :invoice.getLines()){
+						if( line.get_Value("Bay_MasterInvoiceLine_ID")!=null && 
+								line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID()) ){
+							line.deleteEx(true, invoice.get_TrxName());
+						}
+					}
+				}
+
+				for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product))
+				{
+					// The conditional UOM works to check if the parent product has that UOM the related product is created. If it's blank it's always created.
+					int conditionalUOM = related.get_ValueAsInt("C_UOM_ID");
+
+					if( conditionalUOM == 0 || conditionalUOM == invoiceLine.getC_UOM_ID() ){
+
+						MInvoiceLine newLine = new MInvoiceLine(invoice);
+						newLine.setLine(++lineNo);
+						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
+						newLine.setQty(invoiceLine.getQtyInvoiced());
+						if (related.getDescription() != null)
+							newLine.setDescription(related.getDescription());
+						newLine.setPrice();
+						newLine.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", invoiceLine.get_ID());
+						newLine.saveEx(invoice.get_TrxName());
+					}
+				}
+			}  catch (Exception e) {
+			     throw new AdempiereException("Error creating invoice line. Cause: " + e.getLocalizedMessage());
+		    }
+
+		}
+
+	} //createSupplementalInvoiceLines
 
 }

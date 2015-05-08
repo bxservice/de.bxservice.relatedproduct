@@ -49,7 +49,7 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 	/**
 	 * 	Get Related Lines for Product
 	 *	@param product product
-	 *	@return array of BOMs
+	 *	@return array of MRelatedProduct
 	 */
 	public static List<MRelatedProduct> getRelatedLines (MProduct product)
 	{
@@ -57,11 +57,11 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 	}	//	getRelatedLines
 	
 	/**
-	 * 	Get BOM Lines for Product
+	 * 	Get MRelatedProduct Lines for Product
 	 * 	@param ctx context
 	 *	@param M_Product_ID product
 	 *	@param trxName transaction
-	 *	@return array of BOMs
+	 *	@return array of Related Products
 	 */
 	public static List<MRelatedProduct> getRelatedLines (Properties ctx, int M_Product_ID, String trxName)
 	{
@@ -70,9 +70,7 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 		.setParameters(new Object[]{M_Product_ID, MRelatedProduct.RELATEDPRODUCTTYPE_Supplemental})
 		.setOrderBy("relatedproduct_id")
 		.list();
- 
-		/*MRelatedProduct[] retValue = new MRelatedProduct[list.size()];
-		list.toArray(retValue);*/
+
 		return list;
 	}	//	getRelatedLines
 }

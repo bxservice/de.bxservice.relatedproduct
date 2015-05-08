@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="bxservice.idempiere.relatedProduct-plugin">
-   <implementation class="bxservice.idempiere.window.rp.validator.SoTrxWindowValidator"/>
-   <property name="AD_Window_UU" type="String" value="c91d7690-9abe-45d2-a271-0f907c1b4329"/>
-   <service>
-      <provide interface="org.adempiere.webui.adwindow.validator.WindowValidator"/>
-   </service>
-</scr:component>

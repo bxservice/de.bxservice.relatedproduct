@@ -84,10 +84,11 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
-		int lineNo = orderLine.getLine();
 
-		if ( order.isSOTrx() ){
+		if ( product != null && order.isSOTrx() && hasRelatedProducts(product) ){
 			try {
+				int lineNo = orderLine.getLine();
+				
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
 					for( MOrderLine line : order.getLines() ){
@@ -126,10 +127,12 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
-		int lineNo = invoiceLine.getLine();
 
-		if ( invoice.isSOTrx() ){
+		if ( product != null && invoice.isSOTrx() && hasRelatedProducts(product) ){
 			try {
+				
+				int lineNo = invoiceLine.getLine();
+
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
 					for(MInvoiceLine line :invoice.getLines()){
@@ -165,5 +168,11 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		}
 
 	} //createSupplementalInvoiceLines
+	
+	public boolean hasRelatedProducts(MProduct product){
+		if(	MRelatedProduct.getRelatedLines(product) == null || MRelatedProduct.getRelatedLines(product).size()==0 )
+			return false;
+		return true;
+	}
 
 }

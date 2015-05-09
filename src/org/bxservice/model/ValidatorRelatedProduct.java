@@ -108,7 +108,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						MOrderLine newLine = new MOrderLine(order);
 						newLine.setLine(++lineNo);
 						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-						newLine.setQty(orderLine.getQtyOrdered());
+						newLine.setQty(orderLine.getQtyEntered());
 						if (related.getDescription() != null)
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();
@@ -150,7 +150,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						MInvoiceLine newLine = new MInvoiceLine(invoice);
 						newLine.setLine(++lineNo);
 						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-						newLine.setQty(invoiceLine.getQtyInvoiced());
+						newLine.setQty(invoiceLine.getQtyEntered());
 						if (related.getDescription() != null)
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();

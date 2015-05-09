@@ -87,6 +87,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		if ( product != null && order.isSOTrx() && hasRelatedProducts(product) ){
 			try {
+				log.info("Creating related products for: "+product.getName() + " in order: " + order.get_ID());
+				
 				int lineNo = orderLine.getLine();
 				
 				//If the record was modified delete previous supplementary lines to avoid duplicated
@@ -118,6 +120,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						newLine.setPrice();
 						newLine.set_ValueOfColumn("Bay_MasterOrderLine_ID", orderLine.get_ID());
 						newLine.saveEx(order.get_TrxName());
+						
+						log.info("A new sales order line was added with product: "+related.getRelatedProduct().getName());
 					}
 				}
 			} catch (Exception e) {
@@ -133,7 +137,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		if ( product != null && invoice.isSOTrx() && hasRelatedProducts(product) ){
 			try {
-				
+				log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
+
 				int lineNo = invoiceLine.getLine();
 
 				//If the record was modified delete previous supplementary lines to avoid duplicated
@@ -165,6 +170,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						newLine.setPrice();
 						newLine.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", invoiceLine.get_ID());
 						newLine.saveEx(invoice.get_TrxName());
+						
+						log.info("A new invoice line was added with product: "+related.getRelatedProduct().getName());
 					}
 				}
 			}  catch (Exception e) {

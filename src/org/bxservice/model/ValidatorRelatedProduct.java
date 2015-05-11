@@ -135,7 +135,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
 
-		if ( product != null && invoice.isSOTrx() && hasRelatedProducts(product) ){
+		if ( product != null && invoice.isSOTrx() && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 ){
 			try {
 				log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
 

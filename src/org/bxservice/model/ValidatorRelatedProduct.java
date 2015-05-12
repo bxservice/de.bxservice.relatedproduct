@@ -25,6 +25,7 @@
 
 package org.bxservice.model;
 
+import java.math.BigDecimal;
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;
@@ -35,13 +36,14 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.PO;
 import org.compiere.util.CLogger;
+import org.compiere.util.Env;
+import org.compiere.util.Msg;
 import org.osgi.service.event.Event;
 
 public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 	/**	Logger			*/
 	private static CLogger log = CLogger.getCLogger(ValidatorRelatedProduct.class);
-
 
 	@Override
 	protected void initialize() {
@@ -50,10 +52,12 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		//Invoice (Customer)
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MInvoiceLine.Table_Name);
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInvoiceLine.Table_Name);
 
 		//Sales Order
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrderLine.Table_Name);
 
 	} //initialize
 
@@ -78,19 +82,37 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			createSupplementalOrderLines((MOrderLine)po, type);
 
 		}
+		if ( (po instanceof MOrderLine || po instanceof MInvoiceLine) 
+				&& type.equals(IEventTopics.PO_BEFORE_DELETE)  ) {
+
+			nonDeletingSupplementalLines(po);
+
+		}
 	} //doHandleEvent
+
+	/**
+	 * Don't let the supplementary lines be deleted.
+	 * Only when the parent is deleted.
+	 * @param po
+	 */
+	private void nonDeletingSupplementalLines(PO po) {
+		if( (po instanceof MOrderLine && po.get_Value("Bay_MasterOrderLine_ID") != null ) 
+				|| (po instanceof MInvoiceLine && po.get_Value("Bay_MasterInvoiceLine_ID") != null ) )
+			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalDelete"));
+
+	}//nonDeletingSupplementalLines
 
 	public void createSupplementalOrderLines(MOrderLine orderLine, String type){
 
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
 
-		if ( product != null && order.isSOTrx() && hasRelatedProducts(product) ){
+		if ( product != null && hasRelatedProducts(product) ){
 			try {
 				log.info("Creating related products for: "+product.getName() + " in order: " + order.get_ID());
-				
+
 				int lineNo = orderLine.getLine();
-				
+
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
 					for( MOrderLine line : order.getLines() ){
@@ -99,6 +121,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 							//If the change is made when the document is completed don't do anything
 							if( line.getQtyEntered().equals(orderLine.getQtyEntered()) )
 								return;
+							line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
 							line.deleteEx(true, order.get_TrxName());
 						}
 					}
@@ -112,20 +135,24 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 					if( conditionalUOM == 0 || conditionalUOM == orderLine.getC_UOM_ID() ){
 
 						MOrderLine newLine = new MOrderLine(order);
+
 						newLine.setLine(++lineNo);
 						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-						newLine.setQty(orderLine.getQtyEntered());
+						if(related.get_ValueAsInt("Qty")!=0)
+							newLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(orderLine.getQtyEntered()));
+						else
+							newLine.setQty(BigDecimal.valueOf(1));
 						if (related.getDescription() != null)
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();
 						newLine.set_ValueOfColumn("Bay_MasterOrderLine_ID", orderLine.get_ID());
 						newLine.saveEx(order.get_TrxName());
-						
+
 						log.info("A new sales order line was added with product: "+related.getRelatedProduct().getName());
 					}
 				}
 			} catch (Exception e) {
-			     throw new AdempiereException("Error creating order line. Cause: " + e.getLocalizedMessage());
+				throw new AdempiereException("Error creating order line. Cause: " + e.getLocalizedMessage());
 			}
 		}
 	} //createSupplementalOrderLines
@@ -135,7 +162,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
 
-		if ( product != null && invoice.isSOTrx() && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 ){
+		if ( product != null && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 ){
 			try {
 				log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
 
@@ -149,6 +176,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 							//If the change is made when the document is completed don't do anything
 							if( line.getQtyEntered().equals(invoiceLine.getQtyEntered()) )
 								return;
+							line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null); //Allows delete when master is deleted
 							line.deleteEx(true, invoice.get_TrxName());
 						}
 					}
@@ -162,30 +190,33 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 					if( conditionalUOM == 0 || conditionalUOM == invoiceLine.getC_UOM_ID() ){
 
 						MInvoiceLine newLine = new MInvoiceLine(invoice);
+
 						newLine.setLine(++lineNo);
 						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-						newLine.setQty(invoiceLine.getQtyEntered());
+						if(related.get_ValueAsInt("Qty")!=0)
+							newLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(invoiceLine.getQtyEntered()));
+						else
+							newLine.setQty(BigDecimal.valueOf(1));						
 						if (related.getDescription() != null)
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();
 						newLine.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", invoiceLine.get_ID());
 						newLine.saveEx(invoice.get_TrxName());
-						
+
 						log.info("A new invoice line was added with product: "+related.getRelatedProduct().getName());
 					}
 				}
 			}  catch (Exception e) {
-			     throw new AdempiereException("Error creating invoice line. Cause: " + e.getLocalizedMessage());
-		    }
-
+				throw new AdempiereException("Error creating invoice line. Cause: " + e.getLocalizedMessage());
+			}
 		}
 
 	} //createSupplementalInvoiceLines
-	
+
 	public boolean hasRelatedProducts(MProduct product){
 		if(	MRelatedProduct.getRelatedLines(product) == null || MRelatedProduct.getRelatedLines(product).size()==0 )
 			return false;
 		return true;
-	}
+	}//hasRelatedProducts
 
 }

@@ -98,7 +98,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	private void nonDeletingSupplementalLines(PO po) {
 		if( (po instanceof MOrderLine && po.get_Value("Bay_MasterOrderLine_ID") != null ) 
 				|| (po instanceof MInvoiceLine && po.get_Value("Bay_MasterInvoiceLine_ID") != null ) )
-			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalDelete"));
+			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
 
 	}//nonDeletingSupplementalLines
 
@@ -106,6 +106,13 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
+		
+		//Supplemental lines can't be modified
+		if (type.equals(IEventTopics.PO_AFTER_CHANGE) && 
+				orderLine.get_Value("Bay_MasterOrderLine_ID") != null){
+			
+			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
+		}
 
 		if ( product != null && hasRelatedProducts(product) ){
 			try {
@@ -115,6 +122,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
+					
 					for( MOrderLine line : order.getLines() ){
 						if( line.get_Value("Bay_MasterOrderLine_ID")!=null && 
 								line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) ){
@@ -161,6 +169,13 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
+		
+		//Supplemental lines can't be modified
+		if (type.equals(IEventTopics.PO_AFTER_CHANGE) && 
+				invoiceLine.get_Value("Bay_MasterInvoiceLine_ID") != null){
+			
+			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
+		}
 
 		if ( product != null && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 ){
 			try {

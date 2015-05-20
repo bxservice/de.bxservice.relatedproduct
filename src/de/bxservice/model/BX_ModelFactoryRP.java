@@ -23,7 +23,7 @@
 * - Diego Ruiz - BX Service GmbH                                      *
 **********************************************************************/
 
-package org.bxservice.model;
+package de.bxservice.model;
 
 import java.sql.ResultSet;
 

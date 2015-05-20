@@ -23,7 +23,7 @@
  * - Diego Ruiz - BX Service GmbH                                      *
  **********************************************************************/
 
-package org.bxservice.model;
+package de.bxservice.model;
 
 import java.math.BigDecimal;
 import org.adempiere.base.event.AbstractEventHandler;

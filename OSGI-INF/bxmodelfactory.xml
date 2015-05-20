@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="bxservice.model.relatedproduct.factory">
-   <implementation class="org.bxservice.model.BX_ModelFactoryRP"/>
+   <implementation class="de.bxservice.model.BX_ModelFactoryRP"/>
    <property name="service.ranking" type="Integer" value="100"/>
    <service>
       <provide interface="org.adempiere.base.IModelFactory"/>

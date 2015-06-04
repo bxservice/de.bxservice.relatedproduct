@@ -65,7 +65,7 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 	 */
 	public static List<MRelatedProduct> getRelatedLines (Properties ctx, int M_Product_ID, String trxName)
 	{
-		final String whereClause = "M_Product_ID=? AND relatedproducttype=?";
+		final String whereClause = "M_Product_ID=? AND relatedproducttype=? AND M_Product_ID!=relatedproduct_id";
 		List <MRelatedProduct> list = new Query(ctx, MRelatedProduct.Table_Name, whereClause, trxName)
 		.setParameters(new Object[]{M_Product_ID, MRelatedProduct.RELATEDPRODUCTTYPE_Supplemental})
 		.setOrderBy("relatedproduct_id")

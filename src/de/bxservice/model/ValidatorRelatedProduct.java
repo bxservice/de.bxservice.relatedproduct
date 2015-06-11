@@ -49,12 +49,12 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	protected void initialize() {
 		log.warning("");
 
-		//Invoice (Customer)
+		//Invoice (Customer/Vendor)
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInvoiceLine.Table_Name);
 
-		//Sales Order
+		//Sales Order / Purchase Order
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrderLine.Table_Name);
@@ -68,6 +68,12 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		log.info(po.get_TableName() + " Type: "+type);
 
 		// Model Events
+		if ( type.equals(IEventTopics.PO_AFTER_CHANGE) &&
+				po.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID) ){
+
+			removePreviousRelated(po);
+
+		}
 		if (po instanceof MInvoiceLine && 
 				(type.equals(IEventTopics.PO_AFTER_NEW) || 
 						type.equals(IEventTopics.PO_AFTER_CHANGE) ) ) {
@@ -85,34 +91,139 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		if ( (po instanceof MOrderLine || po instanceof MInvoiceLine) 
 				&& type.equals(IEventTopics.PO_BEFORE_DELETE)  ) {
 
-			nonDeletingSupplementalLines(po);
+			nonDeleteSupplementalLines(po);
 
 		}
 	} //doHandleEvent
+	
+	/**
+	 * When the master product is changed, delete old related product lines
+	 * @param po
+	 */
+	private void removePreviousRelated(PO po){
+		
+		if(po instanceof MOrderLine)
+			deleteSupplementaOrderLines((MOrderLine)po, true);
 
+		else if(po instanceof MInvoiceLine)
+			deleteSupplementaInvoiceLines((MInvoiceLine)po, true);
+		
+	}//removePreviousRelated
+
+	/**
+	 * Delete related lines when the parent is deleted.
+	 * @param po
+	 */
+	private void deleteSupplementalLines(PO po) {
+
+		if(po instanceof MOrderLine)
+			deleteSupplementaOrderLines((MOrderLine)po, false);
+
+		else if(po instanceof MInvoiceLine)
+			deleteSupplementaInvoiceLines((MInvoiceLine)po, false);
+
+	
+	}//deleteSupplementalLines
+	
+	/**
+	 * Delete related order lines when a master product is deleted or modified
+	 * @param orderLine
+	 * @param isChanged
+	 * @return
+	 */
+	private boolean deleteSupplementaOrderLines(MOrderLine orderLine, boolean isChanged){
+
+		MProduct product;
+		
+		//If the product is changed in the master line, delete old related product lines
+		if(isChanged){
+			int previousProductId = (Integer) orderLine.get_ValueOld(MOrderLine.COLUMNNAME_M_Product_ID);
+			product = MProduct.get(Env.getCtx(), previousProductId);
+		}
+		else
+			product = orderLine.getProduct();
+		
+		if ( product != null && hasRelatedProducts(product) ){
+			
+			MOrder order = orderLine.getParent();
+			log.info("Deleting related lines for: "+product.getName() + " in order: " + order.get_ID());
+
+			for( MOrderLine line : order.getLines() ){
+				if( line.get_Value("Bay_MasterOrderLine_ID")!=null && 
+						line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) ){
+					//If the change is made when the document is completed don't do anything
+					if( !orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
+							!orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID) )
+						return false;
+					line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
+					line.deleteEx(true, order.get_TrxName());
+				}
+			}
+
+		}
+		return true;
+	}//deleteSupplementaOrderLines
+	
+	/**
+	 * Delete related invoice lines when a master product is deleted or modified
+	 * @param invoiceLine
+	 * @param isChanged
+	 * @return
+	 */
+	private boolean deleteSupplementaInvoiceLines(MInvoiceLine invoiceLine, boolean isChanged){
+		MProduct product;
+		
+		if(isChanged){
+			int previousProductId = (Integer) invoiceLine.get_ValueOld(MOrderLine.COLUMNNAME_M_Product_ID);
+			product = MProduct.get(Env.getCtx(), previousProductId);
+		}
+		else
+			product = invoiceLine.getProduct();
+
+		if ( product != null && hasRelatedProducts(product) ){
+			
+			MInvoice invoice = invoiceLine.getParent();
+			log.info("Creating related lines for: "+product.getName() + " in order: " + invoice.get_ID());
+			
+			for(MInvoiceLine line :invoice.getLines()){
+				if( line.get_Value("Bay_MasterInvoiceLine_ID")!=null && 
+						line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID()) ){
+					//If the change is made when the document is completed don't do anything
+					if( !invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
+							!invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID) )
+						return false;
+					line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null); //Allows delete when master is deleted
+					line.deleteEx(true, invoice.get_TrxName());
+				}
+			}
+
+		}
+		return true;
+	}//deleteSupplementaInvoiceLines
+	
 	/**
 	 * Don't let the supplementary lines be deleted.
 	 * Only when the parent is deleted.
 	 * @param po
 	 */
-	private void nonDeletingSupplementalLines(PO po) {
+	private void nonDeleteSupplementalLines(PO po) {
 		if( (po instanceof MOrderLine && po.get_Value("Bay_MasterOrderLine_ID") != null ) 
 				|| (po instanceof MInvoiceLine && po.get_Value("Bay_MasterInvoiceLine_ID") != null ) )
 			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
+		else 
+			deleteSupplementalLines(po);
 
 	}//nonDeletingSupplementalLines
-
-	public void createSupplementalOrderLines(MOrderLine orderLine, String type){
+	
+	/**
+	 * Create new lines for related products
+	 * @param orderLine
+	 * @param type
+	 */
+	private void createSupplementalOrderLines(MOrderLine orderLine, String type){
 
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
-		
-		//Supplemental lines can't be modified
-		if (type.equals(IEventTopics.PO_AFTER_CHANGE) && 
-				orderLine.get_Value("Bay_MasterOrderLine_ID") != null){
-			
-			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
-		}
 
 		if ( product != null && hasRelatedProducts(product) ){
 			try {
@@ -122,17 +233,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
-					
-					for( MOrderLine line : order.getLines() ){
-						if( line.get_Value("Bay_MasterOrderLine_ID")!=null && 
-								line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) ){
-							//If the change is made when the document is completed don't do anything
-							if( line.getQtyEntered().equals(orderLine.getQtyEntered()) )
-								return;
-							line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
-							line.deleteEx(true, order.get_TrxName());
-						}
-					}
+					if( !deleteSupplementaOrderLines(orderLine,false) )
+						return;
 				}
 
 				for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product))
@@ -165,17 +267,15 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		}
 	} //createSupplementalOrderLines
 
-	public void createSupplementalInvoiceLines(MInvoiceLine invoiceLine, String type){
+	/**
+	 * Create new lines for related products
+	 * @param invoiceLine
+	 * @param type
+	 */
+	private void createSupplementalInvoiceLines(MInvoiceLine invoiceLine, String type){
 
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
-		
-		//Supplemental lines can't be modified
-		if (type.equals(IEventTopics.PO_AFTER_CHANGE) && 
-				invoiceLine.get_Value("Bay_MasterInvoiceLine_ID") != null){
-			
-			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
-		}
 
 		if ( product != null && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 ){
 			try {
@@ -185,16 +285,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
-					for(MInvoiceLine line :invoice.getLines()){
-						if( line.get_Value("Bay_MasterInvoiceLine_ID")!=null && 
-								line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID()) ){
-							//If the change is made when the document is completed don't do anything
-							if( line.getQtyEntered().equals(invoiceLine.getQtyEntered()) )
-								return;
-							line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null); //Allows delete when master is deleted
-							line.deleteEx(true, invoice.get_TrxName());
-						}
-					}
+						if( !deleteSupplementaInvoiceLines(invoiceLine,false) )
+							return;
 				}
 
 				for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product))
@@ -228,7 +320,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 	} //createSupplementalInvoiceLines
 
-	public boolean hasRelatedProducts(MProduct product){
+	private boolean hasRelatedProducts(MProduct product){
 		if(	MRelatedProduct.getRelatedLines(product) == null || MRelatedProduct.getRelatedLines(product).size()==0 )
 			return false;
 		return true;

@@ -152,7 +152,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				if( line.get_Value("Bay_MasterOrderLine_ID")!=null && 
 						line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) ){
 					//If the change is made when the document is completed don't do anything
-					if( !orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
+					if( isChanged && !orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
 							!orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID) )
 						return false;
 					line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
@@ -189,7 +189,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				if( line.get_Value("Bay_MasterInvoiceLine_ID")!=null && 
 						line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID()) ){
 					//If the change is made when the document is completed don't do anything
-					if( !invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
+					if( isChanged && !invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
 							!invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID) )
 						return false;
 					line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null); //Allows delete when master is deleted

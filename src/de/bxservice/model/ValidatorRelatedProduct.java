@@ -48,13 +48,15 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	@Override
 	protected void initialize() {
 		log.warning("");
-
+		
 		//Invoice (Customer/Vendor)
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInvoice.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInvoiceLine.Table_Name);
 
 		//Sales Order / Purchase Order
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrder.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrderLine.Table_Name);
@@ -94,8 +96,46 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			nonDeleteSupplementalLines(po);
 
 		}
+		if ( (po instanceof MOrder || po instanceof MInvoice) 
+				&& type.equals(IEventTopics.PO_BEFORE_DELETE)  ) {
+
+			allowDeletion(po);
+
+		}
 	} //doHandleEvent
 	
+	/**
+	 * When the master document is delete, remove the constraints to be able to delete it
+	 * @param po
+	 */
+	private void allowDeletion(PO po) {
+		if(po instanceof MOrder)
+			allowOrderDeletion((MOrder)po);
+
+		else if(po instanceof MInvoice)
+			allowInvoiceDeletion((MInvoice)po);
+		
+	} //allowDeletion
+
+	private void allowInvoiceDeletion(MInvoice invoice) {
+		if(!invoice.isProcessed()){
+			for( MInvoiceLine line : invoice.getLines() ){
+				line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null);   //Allows delete when master is deleted
+				line.saveEx();
+			}
+		}
+	} //allowInvoiceDeletion
+
+	private void allowOrderDeletion(MOrder order) {
+
+		if(!order.isProcessed()){
+			for( MOrderLine line : order.getLines() ){
+				line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
+				line.saveEx();
+			}
+		}
+	} //allowOrderDeletion
+
 	/**
 	 * When the master product is changed, delete old related product lines
 	 * @param po

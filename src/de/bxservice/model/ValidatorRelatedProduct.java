@@ -100,13 +100,15 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	 * When the master product is changed, delete old related product lines
 	 * @param po
 	 */
-	private void removePreviousRelated(PO po){
+	private boolean removePreviousRelated(PO po){
 		
 		if(po instanceof MOrderLine)
-			deleteSupplementaOrderLines((MOrderLine)po, true);
+			return deleteSupplementaOrderLines((MOrderLine)po, true);
 
 		else if(po instanceof MInvoiceLine)
-			deleteSupplementaInvoiceLines((MInvoiceLine)po, true);
+			return deleteSupplementaInvoiceLines((MInvoiceLine)po, true);
+		
+		return false;
 		
 	}//removePreviousRelated
 
@@ -136,7 +138,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		MProduct product;
 		
 		//If the product is changed in the master line, delete old related product lines
-		if(isChanged){
+		if(isChanged && orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)){
 			int previousProductId = (Integer) orderLine.get_ValueOld(MOrderLine.COLUMNNAME_M_Product_ID);
 			product = MProduct.get(Env.getCtx(), previousProductId);
 		}
@@ -173,7 +175,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	private boolean deleteSupplementaInvoiceLines(MInvoiceLine invoiceLine, boolean isChanged){
 		MProduct product;
 		
-		if(isChanged){
+		if(isChanged && invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)){
 			int previousProductId = (Integer) invoiceLine.get_ValueOld(MOrderLine.COLUMNNAME_M_Product_ID);
 			product = MProduct.get(Env.getCtx(), previousProductId);
 		}
@@ -233,7 +235,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
-					if( !deleteSupplementaOrderLines(orderLine,false) )
+					if( !removePreviousRelated(orderLine) )
 						return;
 				}
 
@@ -285,7 +287,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 				//If the record was modified delete previous supplementary lines to avoid duplicated
 				if (type.equals(IEventTopics.PO_AFTER_CHANGE)){
-						if( !deleteSupplementaInvoiceLines(invoiceLine,false) )
+						if( !removePreviousRelated(invoiceLine) )
 							return;
 				}
 

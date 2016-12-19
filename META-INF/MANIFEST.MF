@@ -4,9 +4,8 @@ Bundle-Name: Related Products
 Bundle-SymbolicName: de.bxservice.relatedproduct;singleton:=true
 Bundle-Version: 1.0.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
-Require-Bundle: org.adempiere.base;bundle-version="3.0.0",
- org.adempiere.plugin.utils;bundle-version="3.0.0",
- org.adempiere.ui.zk;bundle-version="3.0.0"
+Require-Bundle: org.adempiere.base;bundle-version="4.1.0",
+ org.adempiere.plugin.utils;bundle-version="4.1.0"
 Bundle-Activator: org.adempiere.plugin.utils.Incremental2PackActivator
 Import-Package: org.osgi.service.event;version="1.3.0"
 Service-Component: OSGI-INF/validatorrelatedproduct.xml,OSGI-INF/bxmodelfactory.xml

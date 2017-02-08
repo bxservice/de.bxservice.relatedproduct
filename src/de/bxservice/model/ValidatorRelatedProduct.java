@@ -267,7 +267,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
 
-		if ( product != null && hasRelatedProducts(product) ){
+		if (product != null && order.getC_POS_ID() == 0 && hasRelatedProducts(product)) {
 			try {
 				log.info("Creating related products for: "+product.getName() + " in order: " + order.get_ID());
 

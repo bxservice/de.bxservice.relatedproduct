@@ -51,8 +51,7 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 	 *	@param product product
 	 *	@return array of MRelatedProduct
 	 */
-	public static List<MRelatedProduct> getRelatedLines (MProduct product)
-	{
+	public static List<MRelatedProduct> getRelatedLines(MProduct product) {
 		return getRelatedLines(product.getCtx(), product.getM_Product_ID(), product.get_TrxName());
 	}	//	getRelatedLines
 	
@@ -63,9 +62,8 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 	 *	@param trxName transaction
 	 *	@return array of Related Products
 	 */
-	public static List<MRelatedProduct> getRelatedLines (Properties ctx, int M_Product_ID, String trxName)
-	{
-		final String whereClause = "M_Product_ID=? AND relatedproducttype=? AND M_Product_ID!=relatedproduct_id";
+	public static List<MRelatedProduct> getRelatedLines(Properties ctx, int M_Product_ID, String trxName) {
+		final String whereClause = "M_Product_ID=? AND relatedproducttype=? AND M_Product_ID != relatedproduct_id";
 		List <MRelatedProduct> list = new Query(ctx, MRelatedProduct.Table_Name, whereClause, trxName)
 		.setParameters(new Object[]{M_Product_ID, MRelatedProduct.RELATEDPRODUCTTYPE_Supplemental})
 		.setOrderBy("relatedproduct_id")

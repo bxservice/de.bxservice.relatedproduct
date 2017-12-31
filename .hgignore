@@ -1,2 +1,7 @@
+<<<<<<< local
+syntax: glob
+bin
+=======
 syntax: regexp
 bin
+>>>>>>> other

@@ -70,37 +70,34 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		log.info(po.get_TableName() + " Type: "+type);
 
 		// Model Events
-		if ( type.equals(IEventTopics.PO_AFTER_CHANGE) &&
-				po.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID) ){
+		if (po instanceof MOrderLine &&
+				type.equals(IEventTopics.PO_AFTER_CHANGE) &&
+				po.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)) {
 
-			removePreviousRelated(po);
-
+			createSupplementalOrderLines((MOrderLine)po, type);
 		}
-		if (po instanceof MInvoiceLine && 
+		else if (po instanceof MOrderLine &&
+				type.equals(IEventTopics.PO_AFTER_CHANGE) &&
+				po.is_ValueChanged(MOrderLine.COLUMNNAME_QtyOrdered)) {
+			updateRelatedLinesQty((MOrderLine)po);
+		}
+		else if (po instanceof MInvoiceLine && 
 				(type.equals(IEventTopics.PO_AFTER_NEW) || 
 						type.equals(IEventTopics.PO_AFTER_CHANGE) ) ) {
 
 			createSupplementalInvoiceLines((MInvoiceLine)po, type);
 
 		}
-		if (po instanceof MOrderLine && 
-				(type.equals(IEventTopics.PO_AFTER_NEW) || 
-						type.equals(IEventTopics.PO_AFTER_CHANGE) ) ) {
-
+		else if (po instanceof MOrderLine && type.equals(IEventTopics.PO_AFTER_NEW)) {
 			createSupplementalOrderLines((MOrderLine)po, type);
-
 		}
-		if ( (po instanceof MOrderLine || po instanceof MInvoiceLine) 
-				&& type.equals(IEventTopics.PO_BEFORE_DELETE)  ) {
-
+		else if ((po instanceof MOrderLine || po instanceof MInvoiceLine) 
+				&& type.equals(IEventTopics.PO_BEFORE_DELETE)) {
 			nonDeleteSupplementalLines(po);
-
 		}
-		if ( (po instanceof MOrder || po instanceof MInvoice) 
-				&& type.equals(IEventTopics.PO_BEFORE_DELETE)  ) {
-
+		else if ((po instanceof MOrder || po instanceof MInvoice) 
+				&& type.equals(IEventTopics.PO_BEFORE_DELETE)) {
 			allowDeletion(po);
-
 		}
 	} //doHandleEvent
 	
@@ -360,6 +357,38 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			}
 		}
 
+	} //createSupplementalInvoiceLines
+	
+	private void updateRelatedLinesQty(MOrderLine orderLine) {
+
+		MOrder order = orderLine.getParent();
+		MProduct product = orderLine.getProduct();
+
+		if (product != null && hasRelatedProducts(product)) {
+			log.info("Modifying related products for: " + product.getName() + " in order: " + order.get_ID());
+			
+			for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product)) {
+				// The conditional UOM works to check if the parent product has that UOM the related product is created. If it's blank it's always created.
+				int conditionalUOM = related.get_ValueAsInt("C_UOM_ID");
+
+				if (conditionalUOM == 0 || conditionalUOM == orderLine.getC_UOM_ID()) {
+					
+					for (MOrderLine relatedLine : order.getLines()) {
+						if (relatedLine.get_Value("Bay_MasterOrderLine_ID") != null && 
+								relatedLine.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) && 
+								relatedLine.getM_Product_ID() == related.getRelatedProduct_ID()) {
+							if(related.get_ValueAsInt("Qty")!=0)
+								relatedLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(orderLine.getQtyEntered()));
+							else
+								relatedLine.setQty(BigDecimal.valueOf(1));						
+
+							relatedLine.saveEx(order.get_TrxName());
+						}
+					}
+				}
+			}
+
+		}
 	} //createSupplementalInvoiceLines
 
 	private boolean hasRelatedProducts(MProduct product){

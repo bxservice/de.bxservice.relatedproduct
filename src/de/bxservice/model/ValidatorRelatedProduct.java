@@ -45,6 +45,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 	/**	Logger			*/
 	private static CLogger log = CLogger.getCLogger(ValidatorRelatedProduct.class);
+	private static final String REVERSAL_CONTEXT_KEY = "relatedTrxNameReversal";
 
 	@Override
 	protected void initialize() {
@@ -55,6 +56,10 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MInvoiceLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInvoiceLine.Table_Name);
+		registerTableEvent(IEventTopics.DOC_BEFORE_REVERSECORRECT, MInvoice.Table_Name);
+		registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MInvoice.Table_Name);
+		registerTableEvent(IEventTopics.DOC_AFTER_REVERSEACCRUAL, MInvoice.Table_Name);
+		registerTableEvent(IEventTopics.DOC_AFTER_REVERSECORRECT, MInvoice.Table_Name);
 
 		//Sales Order / Purchase Order
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrder.Table_Name);
@@ -99,6 +104,16 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		else if ((po instanceof MOrder || po instanceof MInvoice) 
 				&& type.equals(IEventTopics.PO_BEFORE_DELETE)) {
 			allowDeletion(po);
+		}
+		else if (po instanceof MInvoice && 
+				(type.equals(IEventTopics.DOC_BEFORE_REVERSECORRECT) || 
+				type.equals(IEventTopics.DOC_BEFORE_REVERSEACCRUAL))) {
+			Env.setContext(Env.getCtx(), REVERSAL_CONTEXT_KEY, po.get_TrxName());
+		}
+		else if (po instanceof MInvoice && 
+				(type.equals(IEventTopics.DOC_AFTER_REVERSEACCRUAL) || 
+				type.equals(IEventTopics.DOC_AFTER_REVERSECORRECT))) {
+			Env.setContext(Env.getCtx(), REVERSAL_CONTEXT_KEY, "");
 		}
 	} //doHandleEvent
 	
@@ -260,7 +275,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
-
+		
 		if (product != null && order.getC_POS_ID() == 0 && hasRelatedProducts(product)) {
 			try {
 				log.info("Creating related products for: " + product.getName() + " in order: " + order.get_ID());
@@ -311,8 +326,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
-
-		if (product != null && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0) {
+		
+		if (product != null && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 && !Env.getContext(Env.getCtx(), REVERSAL_CONTEXT_KEY).equals(invoice.get_TrxName())) {
 			try {
 				log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
 

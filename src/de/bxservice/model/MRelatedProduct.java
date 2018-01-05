@@ -66,6 +66,7 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 		final String whereClause = "M_Product_ID=? AND relatedproducttype=? AND M_Product_ID != relatedproduct_id";
 		List <MRelatedProduct> list = new Query(ctx, MRelatedProduct.Table_Name, whereClause, trxName)
 		.setParameters(new Object[]{M_Product_ID, MRelatedProduct.RELATEDPRODUCTTYPE_Supplemental})
+		.setOnlyActiveRecords(true)
 		.setOrderBy("relatedproduct_id")
 		.list();
 

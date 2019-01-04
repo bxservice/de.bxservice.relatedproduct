@@ -37,6 +37,7 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.PO;
 import org.compiere.util.CLogger;
+import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
 import org.osgi.service.event.Event;
@@ -327,7 +328,10 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		MInvoice invoice = invoiceLine.getParent();
 		MProduct product = invoiceLine.getProduct();
 		
-		if (product != null && hasRelatedProducts(product) && invoiceLine.getM_InOutLine_ID() == 0 && !Env.getContext(Env.getCtx(), REVERSAL_CONTEXT_KEY).equals(invoice.get_TrxName())) {
+		if (   product != null 
+			&& hasRelatedProducts(product)
+			&& (invoiceLine.getM_InOutLine_ID() == 0 || !invoice.isSOTrx())
+			&& !Env.getContext(Env.getCtx(), REVERSAL_CONTEXT_KEY).equals(invoice.get_TrxName())) {
 			try {
 				log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
 
@@ -357,6 +361,15 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();
 						newLine.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", invoiceLine.get_ID());
+						// assign purchase order line
+						if (! invoice.isSOTrx() && invoiceLine.getC_OrderLine_ID()>0) {
+							String sql = "SELECT C_OrderLine_ID FROM C_OrderLine WHERE BAY_MasterOrderLine_ID=? AND M_Product_ID=? AND QtyOrdered=?";
+							int orderLineId = DB.getSQLValueEx(invoiceLine.get_TrxName(), sql,
+									invoiceLine.getC_OrderLine_ID(),
+									newLine.getM_Product_ID(),
+									newLine.getQtyInvoiced());
+							newLine.setC_OrderLine_ID(orderLineId);
+						}
 						newLine.saveEx(invoice.get_TrxName());
 
 						log.info("A new invoice line was added with product: " + related.getRelatedProduct().getName());

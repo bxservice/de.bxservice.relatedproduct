@@ -73,7 +73,8 @@ public class BX_WCreateFromInvoiceUI extends WCreateFromInvoiceUI {
 			+ "l.QtyOrdered-SUM(COALESCE(m.Qty,0)),"					//	1
 			+ "CASE WHEN l.QtyOrdered=0 THEN 0 ELSE l.QtyEntered/l.QtyOrdered END,"	//	2
 			+ " l.C_UOM_ID,COALESCE(uom.UOMSymbol,uom.Name),"			//	3..4
-			+ " COALESCE(l.M_Product_ID,0),COALESCE(p.Name,c.Name),po.VendorProductNo,"	//	5..7
+			// BX Service!! added product Value before the Name - here and in the Group By 
+			+ " COALESCE(l.M_Product_ID,0),COALESCE(p.Value||'_'||p.Name,c.Name),po.VendorProductNo,"	//	5..7
 			+ " l.C_OrderLine_ID,l.Line "								//	8..9
 			+ "FROM C_OrderLine l"
 			+ " LEFT OUTER JOIN M_Product_PO po ON (l.M_Product_ID = po.M_Product_ID AND l.C_BPartner_ID = po.C_BPartner_ID) "
@@ -90,15 +91,15 @@ public class BX_WCreateFromInvoiceUI extends WCreateFromInvoiceUI {
 		//
 		sql.append(" WHERE l.C_Order_ID=? "			//	#1
 
-			/***********************************************************************
-			 * BX Service!! - this is the only change for related product from core
-			 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+			/****************************************************************************
+			 * BX Service!! - added filter to hide supplemental lines for related product
+			 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 			+ " AND l.bay_masterorderline_id IS NULL "
-			/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+			/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 			+ "GROUP BY l.QtyOrdered,CASE WHEN l.QtyOrdered=0 THEN 0 ELSE l.QtyEntered/l.QtyOrdered END, "
 			+ "l.C_UOM_ID,COALESCE(uom.UOMSymbol,uom.Name),po.VendorProductNo, "
-				+ "l.M_Product_ID,COALESCE(p.Name,c.Name), l.Line,l.C_OrderLine_ID "
+				+ "l.M_Product_ID,COALESCE(p.Value||'_'||p.Name,c.Name), l.Line,l.C_OrderLine_ID "
 			+ "ORDER BY l.Line");
 		//
 		if (log.isLoggable(Level.FINER)) log.finer(sql.toString());

@@ -202,13 +202,13 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			MOrder order = orderLine.getParent();
 			log.info("Deleting related lines for: " + product.getName() + " in order: " + order.get_ID());
 
+			//If the change is made when the document is completed don't do anything
+			if (isChanged && !orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
+					!orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID))
+				return false;
 			for (MOrderLine line : order.getLines()) {
 				if (line.get_Value("Bay_MasterOrderLine_ID") != null && 
 						line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID())) {
-					//If the change is made when the document is completed don't do anything
-					if (isChanged && !orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
-							!orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID))
-						return false;
 					line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
 					line.deleteEx(true, order.get_TrxName());
 				}
@@ -236,15 +236,15 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		if (product != null && hasRelatedProducts(product)) {
 			
 			MInvoice invoice = invoiceLine.getParent();
-			log.info("Creating related lines for: " + product.getName() + " in order: " + invoice.get_ID());
+			log.info("Creating related lines for: " + product.getName() + " in invoice: " + invoice.get_ID());
 			
+			//If the change is made when the document is completed don't do anything
+			if (isChanged && !invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
+					!invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID))
+				return false;
 			for (MInvoiceLine line :invoice.getLines()) {
 				if (line.get_Value("Bay_MasterInvoiceLine_ID") != null && 
 						line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID())) {
-					//If the change is made when the document is completed don't do anything
-					if (isChanged && !invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
-							!invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID))
-						return false;
 					line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null); //Allows delete when master is deleted
 					line.deleteEx(true, invoice.get_TrxName());
 				}

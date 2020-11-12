@@ -193,7 +193,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		//If the product is changed in the master line, delete old related product lines
 		if (isChanged && orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)) {
 			int previousProductId = (Integer) orderLine.get_ValueOld(MOrderLine.COLUMNNAME_M_Product_ID);
-			product = MProduct.get(Env.getCtx(), previousProductId);
+			product = MProduct.get(previousProductId);
 		} else
 			product = orderLine.getProduct();
 		
@@ -229,7 +229,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		
 		if (isChanged && invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)) {
 			int previousProductId = (Integer) invoiceLine.get_ValueOld(MOrderLine.COLUMNNAME_M_Product_ID);
-			product = MProduct.get(Env.getCtx(), previousProductId);
+			product = MProduct.get(previousProductId);
 		} else
 			product = invoiceLine.getProduct();
 

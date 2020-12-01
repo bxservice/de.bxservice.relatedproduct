@@ -48,12 +48,7 @@ public class BX_WCreateFromInvoiceUI extends WCreateFromInvoiceUI {
 		super(tab);
 	}
 
-	/**
-	 *  Load Data - Order
-	 *  @param C_Order_ID Order
-	 *  @param forInvoice true if for invoice vs. delivery qty
-	 */
-	protected Vector<Vector<Object>> getOrderData (int C_Order_ID, boolean forInvoice)
+	protected Vector<Vector<Object>> getOrderData (int C_Order_ID, boolean forInvoice, boolean forCreditMemo)
 	{
 		/**
 		 *  Selected        - 0
@@ -69,9 +64,9 @@ public class BX_WCreateFromInvoiceUI extends WCreateFromInvoiceUI {
 		p_order = new MOrder (Env.getCtx(), C_Order_ID, null);
 
 		Vector<Vector<Object>> data = new Vector<Vector<Object>>();
-		StringBuilder sql = new StringBuilder("SELECT "
-			+ "l.QtyOrdered-SUM(COALESCE(m.Qty,0)),"					//	1
-			+ "CASE WHEN l.QtyOrdered=0 THEN 0 ELSE l.QtyEntered/l.QtyOrdered END,"	//	2
+		StringBuilder sql = new StringBuilder("SELECT ");
+		sql.append(forCreditMemo ? "SUM(COALESCE(m.Qty,0))," : "l.QtyOrdered-SUM(COALESCE(m.Qty,0)),");	//	1
+		sql.append("CASE WHEN l.QtyOrdered=0 THEN 0 ELSE l.QtyEntered/l.QtyOrdered END,"	//	2
 			+ " l.C_UOM_ID,COALESCE(uom.UOMSymbol,uom.Name),"			//	3..4
 			// BX Service!! added product Value before the Name - here and in the Group By 
 			+ " COALESCE(l.M_Product_ID,0),COALESCE(p.Value||'_'||p.Name,c.Name),po.VendorProductNo,"	//	5..7
@@ -80,7 +75,7 @@ public class BX_WCreateFromInvoiceUI extends WCreateFromInvoiceUI {
 			+ " LEFT OUTER JOIN M_Product_PO po ON (l.M_Product_ID = po.M_Product_ID AND l.C_BPartner_ID = po.C_BPartner_ID) "
 			+ " LEFT OUTER JOIN M_MatchPO m ON (l.C_OrderLine_ID=m.C_OrderLine_ID AND ");
 		sql.append(forInvoice ? "m.C_InvoiceLine_ID" : "m.M_InOutLine_ID");
-		sql.append(" IS NOT NULL)")
+		sql.append(" IS NOT NULL AND COALESCE(m.Reversal_ID,0)=0)")
 			.append(" LEFT OUTER JOIN M_Product p ON (l.M_Product_ID=p.M_Product_ID)"
 			+ " LEFT OUTER JOIN C_Charge c ON (l.C_Charge_ID=c.C_Charge_ID)");
 		if (Env.isBaseLanguage(Env.getCtx(), "C_UOM"))
@@ -113,7 +108,7 @@ public class BX_WCreateFromInvoiceUI extends WCreateFromInvoiceUI {
 			while (rs.next())
 			{
 				Vector<Object> line = new Vector<Object>();
-				line.add(new Boolean(false));           //  0-Selection
+				line.add(Boolean.FALSE);           //  0-Selection
 				BigDecimal qtyOrdered = rs.getBigDecimal(1);
 				BigDecimal multiplier = rs.getBigDecimal(2);
 				BigDecimal qtyEntered = qtyOrdered.multiply(multiplier);

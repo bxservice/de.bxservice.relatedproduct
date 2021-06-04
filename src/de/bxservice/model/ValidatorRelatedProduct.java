@@ -47,7 +47,9 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	/**	Logger			*/
 	private static CLogger log = CLogger.getCLogger(ValidatorRelatedProduct.class);
 	private static final String REVERSAL_CONTEXT_KEY = "relatedTrxNameReversal";
-
+	private static final String MasterOrderLine_COLUMN_NAME = "Bay_MasterOrderLine_ID";
+	private static final String MasterInvoiceLine_COLUMN_NAME = "Bay_MasterInvoiceLine_ID";
+	
 	@Override
 	protected void initialize() {
 		log.warning("");
@@ -61,6 +63,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MInvoice.Table_Name);
 		registerTableEvent(IEventTopics.DOC_AFTER_REVERSEACCRUAL, MInvoice.Table_Name);
 		registerTableEvent(IEventTopics.DOC_AFTER_REVERSECORRECT, MInvoice.Table_Name);
+		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MInvoice.Table_Name);
 
 		//Sales Order / Purchase Order
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrder.Table_Name);
@@ -116,6 +119,10 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				type.equals(IEventTopics.DOC_AFTER_REVERSECORRECT))) {
 			Env.setContext(Env.getCtx(), REVERSAL_CONTEXT_KEY, "");
 		}
+		else if (po instanceof MInvoice && 
+				(type.equals(IEventTopics.DOC_BEFORE_COMPLETE))) {
+			setMasterInvoiceLineReferences((MInvoice) po);
+		}
 	} //doHandleEvent
 	
 	/**
@@ -134,7 +141,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	private void allowInvoiceDeletion(MInvoice invoice) {
 		if (!invoice.isProcessed()) {
 			for (MInvoiceLine line : invoice.getLines()) {
-				line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null);   //Allows delete when master is deleted
+				line.set_ValueOfColumn(MasterInvoiceLine_COLUMN_NAME, null);   //Allows delete when master is deleted
 				line.saveEx();
 			}
 		}
@@ -144,7 +151,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 		if (!order.isProcessed()) {
 			for (MOrderLine line : order.getLines()) {
-				line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
+				line.set_ValueOfColumn(MasterOrderLine_COLUMN_NAME, null);   //Allows delete when master is deleted
 				line.saveEx();
 			}
 		}
@@ -207,9 +214,9 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 					!orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID))
 				return false;
 			for (MOrderLine line : order.getLines()) {
-				if (line.get_Value("Bay_MasterOrderLine_ID") != null && 
-						line.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID())) {
-					line.set_ValueOfColumn("Bay_MasterOrderLine_ID", null);   //Allows delete when master is deleted
+				if (line.get_Value(MasterOrderLine_COLUMN_NAME) != null && 
+						line.get_Value(MasterOrderLine_COLUMN_NAME).equals(orderLine.get_ID())) {
+					line.set_ValueOfColumn(MasterOrderLine_COLUMN_NAME, null);   //Allows delete when master is deleted
 					line.deleteEx(true, order.get_TrxName());
 				}
 			}
@@ -243,9 +250,9 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 					!invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID))
 				return false;
 			for (MInvoiceLine line :invoice.getLines()) {
-				if (line.get_Value("Bay_MasterInvoiceLine_ID") != null && 
-						line.get_Value("Bay_MasterInvoiceLine_ID").equals(invoiceLine.get_ID())) {
-					line.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", null); //Allows delete when master is deleted
+				if (line.get_Value(MasterInvoiceLine_COLUMN_NAME) != null && 
+						line.get_Value(MasterInvoiceLine_COLUMN_NAME).equals(invoiceLine.get_ID())) {
+					line.set_ValueOfColumn(MasterInvoiceLine_COLUMN_NAME, null); //Allows delete when master is deleted
 					line.deleteEx(true, invoice.get_TrxName());
 				}
 			}
@@ -259,8 +266,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	 * @param po
 	 */
 	private void nonDeleteSupplementalLines(PO po) {
-		if ((po instanceof MOrderLine && po.get_Value("Bay_MasterOrderLine_ID") != null) 
-				|| (po instanceof MInvoiceLine && po.get_Value("Bay_MasterInvoiceLine_ID") != null))
+		if ((po instanceof MOrderLine && po.get_Value(MasterOrderLine_COLUMN_NAME) != null) 
+				|| (po instanceof MInvoiceLine && po.get_Value(MasterInvoiceLine_COLUMN_NAME) != null))
 			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
 		else 
 			deleteSupplementalLines(po);
@@ -306,7 +313,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						if (related.getDescription() != null)
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();
-						newLine.set_ValueOfColumn("Bay_MasterOrderLine_ID", orderLine.get_ID());
+						newLine.set_ValueOfColumn(MasterOrderLine_COLUMN_NAME, orderLine.get_ID());
 						newLine.saveEx(order.get_TrxName());
 
 						log.info("A new sales order line was added with product: "+related.getRelatedProduct().getName());
@@ -360,7 +367,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						if (related.getDescription() != null)
 							newLine.setDescription(related.getDescription());
 						newLine.setPrice();
-						newLine.set_ValueOfColumn("Bay_MasterInvoiceLine_ID", invoiceLine.get_ID());
+						newLine.set_ValueOfColumn(MasterInvoiceLine_COLUMN_NAME, invoiceLine.get_ID());
 						// assign purchase order line
 						if (! invoice.isSOTrx() && invoiceLine.getC_OrderLine_ID()>0) {
 							String sql = "SELECT C_OrderLine_ID FROM C_OrderLine WHERE BAY_MasterOrderLine_ID=? AND M_Product_ID=? AND QtyOrdered=?";
@@ -397,8 +404,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				if (conditionalUOM == 0 || conditionalUOM == orderLine.getC_UOM_ID()) {
 					
 					for (MOrderLine relatedLine : order.getLines()) {
-						if (relatedLine.get_Value("Bay_MasterOrderLine_ID") != null && 
-								relatedLine.get_Value("Bay_MasterOrderLine_ID").equals(orderLine.get_ID()) && 
+						if (relatedLine.get_Value(MasterOrderLine_COLUMN_NAME) != null && 
+								relatedLine.get_Value(MasterOrderLine_COLUMN_NAME).equals(orderLine.get_ID()) && 
 								relatedLine.getM_Product_ID() == related.getRelatedProduct_ID()) {
 							if(related.get_ValueAsInt("Qty")!=0)
 								relatedLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(orderLine.getQtyEntered()));
@@ -419,4 +426,27 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			return false;
 		return true;
 	} //hasRelatedProducts
+	
+	private void setMasterInvoiceLineReferences(MInvoice invoice) {
+		MInvoiceLine[] invoiceLines = invoice.getLines();
+		for (MInvoiceLine invoiceLine : invoiceLines) {
+			MOrderLine referencedOrderLine = new MOrderLine(Env.getCtx(), invoiceLine.getC_OrderLine_ID(), null);
+			int masterOrderLineID = referencedOrderLine.get_ValueAsInt(MasterOrderLine_COLUMN_NAME);
+			if (masterOrderLineID > 0) {
+				int masterInvoiceLineID = getMasterInvoiceLineIDFromOrderLine(invoiceLines, masterOrderLineID);
+				invoiceLine.set_ValueOfColumn(MasterInvoiceLine_COLUMN_NAME, masterInvoiceLineID);
+				invoiceLine.saveEx(invoice.get_TrxName());
+			}
+		}
+	}
+	
+	private int getMasterInvoiceLineIDFromOrderLine(MInvoiceLine[] invoiceLines, int orderLineID) {
+		for (MInvoiceLine invoiceLine : invoiceLines) {
+			if (invoiceLine.getC_OrderLine_ID() == orderLineID) {
+				return invoiceLine.getC_InvoiceLine_ID();
+			}
+		}
+		return -1;
+	}
+	
 }

@@ -63,7 +63,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		registerTableEvent(IEventTopics.DOC_BEFORE_REVERSEACCRUAL, MInvoice.Table_Name);
 		registerTableEvent(IEventTopics.DOC_AFTER_REVERSEACCRUAL, MInvoice.Table_Name);
 		registerTableEvent(IEventTopics.DOC_AFTER_REVERSECORRECT, MInvoice.Table_Name);
-		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MInvoice.Table_Name);
+		registerTableEvent(IEventTopics.DOC_BEFORE_PREPARE, MInvoice.Table_Name);
 
 		//Sales Order / Purchase Order
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrder.Table_Name);
@@ -120,7 +120,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			Env.setContext(Env.getCtx(), REVERSAL_CONTEXT_KEY, "");
 		}
 		else if (po instanceof MInvoice && 
-				(type.equals(IEventTopics.DOC_BEFORE_COMPLETE))) {
+				(type.equals(IEventTopics.DOC_BEFORE_PREPARE))) {
 			setMasterInvoiceLineReferences((MInvoice) po);
 		}
 	} //doHandleEvent

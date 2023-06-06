@@ -430,7 +430,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	private void setMasterInvoiceLineReferences(MInvoice invoice) {
 		MInvoiceLine[] invoiceLines = invoice.getLines();
 		for (MInvoiceLine invoiceLine : invoiceLines) {
-			MOrderLine referencedOrderLine = new MOrderLine(Env.getCtx(), invoiceLine.getC_OrderLine_ID(), null);
+			MOrderLine referencedOrderLine = new MOrderLine(Env.getCtx(), invoiceLine.getC_OrderLine_ID(), invoice.get_TrxName());
 			int masterOrderLineID = referencedOrderLine.get_ValueAsInt(MasterOrderLine_COLUMN_NAME);
 			if (masterOrderLineID > 0) {
 				int masterInvoiceLineID = getMasterInvoiceLineIDFromOrderLine(invoiceLines, masterOrderLineID);

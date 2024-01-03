@@ -409,9 +409,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				if (isConditionalUOM(relatedProduct, orderLine.getC_UOM_ID())) {
 
 					for (MOrderLine relatedLine : order.getLines()) {
-						if (relatedLine.get_Value(MasterOrderLine_COLUMN_NAME) != null && 
-								relatedLine.get_Value(MasterOrderLine_COLUMN_NAME).equals(orderLine.get_ID()) && 
-								relatedLine.getM_Product_ID() == relatedProduct.getRelatedProduct_ID()) {
+						if (isRelatedLine(relatedLine, orderLine, relatedProduct)) {
 							if(relatedProduct.get_ValueAsInt("Qty")!=0)
 								relatedLine.setQty(BigDecimal.valueOf(relatedProduct.get_ValueAsInt("Qty")).multiply(orderLine.getQtyOrdered()));
 							else
@@ -431,6 +429,17 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			return false;
 		return true;
 	} //hasRelatedProducts
+	
+	/**
+	 * 
+	 * @param relatedLine
+	 * @return true if the line is a related line of the master line with the related product
+	 */
+	private boolean isRelatedLine(MOrderLine relatedLine, MOrderLine masterLine, MRelatedProduct relatedProduct) {
+		return relatedLine.get_Value(MasterOrderLine_COLUMN_NAME) != null && 
+				relatedLine.get_Value(MasterOrderLine_COLUMN_NAME).equals(masterLine.get_ID()) && 
+				relatedLine.getM_Product_ID() == relatedProduct.getRelatedProduct_ID();
+	}
 	
 	private void setMasterInvoiceLineReferences(MInvoice invoice) {
 		MInvoiceLine[] invoiceLines = invoice.getLines();

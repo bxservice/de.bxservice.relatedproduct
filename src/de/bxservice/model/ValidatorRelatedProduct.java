@@ -49,6 +49,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	private static final String REVERSAL_CONTEXT_KEY = "relatedTrxNameReversal";
 	private static final String MasterOrderLine_COLUMN_NAME = "Bay_MasterOrderLine_ID";
 	private static final String MasterInvoiceLine_COLUMN_NAME = "Bay_MasterInvoiceLine_ID";
+	private static final String PO_CLOSING_ATTRIBUTE_NAME = "Bay_IsClosing";
 	
 	@Override
 	protected void initialize() {
@@ -66,6 +67,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		registerTableEvent(IEventTopics.DOC_BEFORE_PREPARE, MInvoice.Table_Name);
 
 		//Sales Order / Purchase Order
+		registerTableEvent(IEventTopics.DOC_BEFORE_CLOSE, MOrder.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrder.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_NEW, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
@@ -122,6 +124,10 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		else if (po instanceof MInvoice && 
 				(type.equals(IEventTopics.DOC_BEFORE_PREPARE))) {
 			setMasterInvoiceLineReferences((MInvoice) po);
+		}
+		else if (po instanceof MOrder && 
+				(type.equals(IEventTopics.DOC_BEFORE_CLOSE))) {
+			setPOClosingAttribute(po, true);
 		}
 	} //doHandleEvent
 	
@@ -397,8 +403,11 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	} //createSupplementalInvoiceLines
 	
 	private void updateRelatedLinesQty(MOrderLine orderLine) {
-
 		MOrder order = orderLine.getParent();
+		if (isPOClosing(order))
+			return;
+
+		
 		MProduct product = orderLine.getProduct();
 
 		if (product != null && hasRelatedProducts(product)) {
@@ -410,9 +419,11 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 					for (MOrderLine relatedLine : order.getLines()) {
 						if (isRelatedLine(relatedLine, orderLine, relatedProduct)) {
-							if(relatedProduct.get_ValueAsInt("Qty")!=0)
-								relatedLine.setQty(BigDecimal.valueOf(relatedProduct.get_ValueAsInt("Qty")).multiply(orderLine.getQtyOrdered()));
-							else
+							int relatedProductQty = relatedProduct.get_ValueAsInt("Qty"); 
+							
+							if (relatedProductQty != 0) {
+								relatedLine.setQty(BigDecimal.valueOf(relatedProductQty).multiply(orderLine.getQtyEntered()));
+							} else
 								relatedLine.setQty(BigDecimal.valueOf(1));						
 
 							relatedLine.saveEx(order.get_TrxName());
@@ -463,4 +474,14 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		return -1;
 	}
 	
+	private void setPOClosingAttribute(PO po, Object value) {
+		po.set_Attribute(PO_CLOSING_ATTRIBUTE_NAME, value);
+	}
+	
+	private boolean isPOClosing(PO po) {
+		if (po.get_Attribute(PO_CLOSING_ATTRIBUTE_NAME) != null)
+			return (boolean) po.get_Attribute(PO_CLOSING_ATTRIBUTE_NAME);
+
+		return false;
+	}
 }

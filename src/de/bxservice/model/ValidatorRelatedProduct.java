@@ -296,27 +296,24 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						return;
 				}
 
-				for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product)) {
-					// The conditional UOM works to check if the parent product has that UOM the related product is created. If it's blank it's always created.
-					int conditionalUOM = related.get_ValueAsInt("C_UOM_ID");
-
-					if (conditionalUOM == 0 || conditionalUOM == orderLine.getC_UOM_ID()) {
+				for (MRelatedProduct relatedProduct : MRelatedProduct.getRelatedLines(product)) {
+					if (isConditionalUOM(relatedProduct, orderLine.getC_UOM_ID())) {
 
 						MOrderLine newLine = new MOrderLine(order);
 
 						newLine.setLine(++lineNo);
-						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-						if (related.get_ValueAsInt("Qty") != 0)
-							newLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(orderLine.getQtyEntered()));
+						newLine.setM_Product_ID(relatedProduct.getRelatedProduct_ID(), true);
+						if (relatedProduct.get_ValueAsInt("Qty") != 0)
+							newLine.setQty(BigDecimal.valueOf(relatedProduct.get_ValueAsInt("Qty")).multiply(orderLine.getQtyEntered()));
 						else
 							newLine.setQty(BigDecimal.valueOf(1));
-						if (related.getDescription() != null)
-							newLine.setDescription(related.getDescription());
+						if (relatedProduct.getDescription() != null)
+							newLine.setDescription(relatedProduct.getDescription());
 						newLine.setPrice();
 						newLine.set_ValueOfColumn(MasterOrderLine_COLUMN_NAME, orderLine.get_ID());
 						newLine.saveEx(order.get_TrxName());
 
-						log.info("A new sales order line was added with product: "+related.getRelatedProduct().getName());
+						log.info("A new sales order line was added with product: "+relatedProduct.getRelatedProduct().getName());
 					}
 				}
 			} catch (Exception e) {
@@ -324,6 +321,18 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			}
 		}
 	} //createSupplementalOrderLines
+
+	/**
+	 * The conditional UOM works to check if the parent product has that UOM the related product is created. 
+	 * If it's blank it's always created.
+	 * @param relatedProduct
+	 * @param lineC_UOM_ID
+	 * @return true if a related product must be created based on the UOM of the line 
+	 */
+	private boolean isConditionalUOM(MRelatedProduct relatedProduct, int lineC_UOM_ID) {
+		int conditionalUOM = relatedProduct.get_ValueAsInt("C_UOM_ID");
+		return conditionalUOM == 0 || conditionalUOM == lineC_UOM_ID; 
+	}
 
 	/**
 	 * Create new lines for related products
@@ -350,22 +359,20 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 							return;
 				}
 
-				for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product)) {
-					// The conditional UOM works to check if the parent product has that UOM the related product is created. If it's blank it's always created.
-					int conditionalUOM = related.get_ValueAsInt("C_UOM_ID");
+				for (MRelatedProduct relatedProduct : MRelatedProduct.getRelatedLines(product)) {
 
-					if (conditionalUOM == 0 || conditionalUOM == invoiceLine.getC_UOM_ID()) {
+					if (isConditionalUOM(relatedProduct, invoiceLine.getC_UOM_ID())) {
 
 						MInvoiceLine newLine = new MInvoiceLine(invoice);
 
 						newLine.setLine(++lineNo);
-						newLine.setM_Product_ID(related.getRelatedProduct_ID(), true);
-						if (related.get_ValueAsInt("Qty") != 0)
-							newLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(invoiceLine.getQtyEntered()));
+						newLine.setM_Product_ID(relatedProduct.getRelatedProduct_ID(), true);
+						if (relatedProduct.get_ValueAsInt("Qty") != 0)
+							newLine.setQty(BigDecimal.valueOf(relatedProduct.get_ValueAsInt("Qty")).multiply(invoiceLine.getQtyEntered()));
 						else
 							newLine.setQty(BigDecimal.valueOf(1));
-						if (related.getDescription() != null)
-							newLine.setDescription(related.getDescription());
+						if (relatedProduct.getDescription() != null)
+							newLine.setDescription(relatedProduct.getDescription());
 						newLine.setPrice();
 						newLine.set_ValueOfColumn(MasterInvoiceLine_COLUMN_NAME, invoiceLine.get_ID());
 						// assign purchase order line
@@ -379,7 +386,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						}
 						newLine.saveEx(invoice.get_TrxName());
 
-						log.info("A new invoice line was added with product: " + related.getRelatedProduct().getName());
+						log.info("A new invoice line was added with product: " + relatedProduct.getRelatedProduct().getName());
 					}
 				}
 			} catch (Exception e) {
@@ -397,18 +404,16 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		if (product != null && hasRelatedProducts(product)) {
 			log.info("Modifying related products for: " + product.getName() + " in order: " + order.get_ID());
 			
-			for (MRelatedProduct related : MRelatedProduct.getRelatedLines(product)) {
-				// The conditional UOM works to check if the parent product has that UOM the related product is created. If it's blank it's always created.
-				int conditionalUOM = related.get_ValueAsInt("C_UOM_ID");
+			for (MRelatedProduct relatedProduct : MRelatedProduct.getRelatedLines(product)) {
 
-				if (conditionalUOM == 0 || conditionalUOM == orderLine.getC_UOM_ID()) {
-					
+				if (isConditionalUOM(relatedProduct, orderLine.getC_UOM_ID())) {
+
 					for (MOrderLine relatedLine : order.getLines()) {
 						if (relatedLine.get_Value(MasterOrderLine_COLUMN_NAME) != null && 
 								relatedLine.get_Value(MasterOrderLine_COLUMN_NAME).equals(orderLine.get_ID()) && 
-								relatedLine.getM_Product_ID() == related.getRelatedProduct_ID()) {
-							if(related.get_ValueAsInt("Qty")!=0)
-								relatedLine.setQty(BigDecimal.valueOf(related.get_ValueAsInt("Qty")).multiply(orderLine.getQtyEntered()));
+								relatedLine.getM_Product_ID() == relatedProduct.getRelatedProduct_ID()) {
+							if(relatedProduct.get_ValueAsInt("Qty")!=0)
+								relatedLine.setQty(BigDecimal.valueOf(relatedProduct.get_ValueAsInt("Qty")).multiply(orderLine.getQtyOrdered()));
 							else
 								relatedLine.setQty(BigDecimal.valueOf(1));						
 

@@ -26,6 +26,7 @@
 package de.bxservice.model;
 
 import java.math.BigDecimal;
+import java.util.logging.Level;
 
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
@@ -79,7 +80,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	protected void doHandleEvent(Event event) {
 		String type = event.getTopic();
 		PO po = getPO(event);
-		log.info(po.get_TableName() + " Type: "+type);
+		if (log.isLoggable(Level.INFO))
+			log.info(po.get_TableName() + " Type: "+type);
 
 		// Model Events
 		if (po instanceof MOrderLine &&
@@ -213,7 +215,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		if (product != null && hasRelatedProducts(product)) {
 			
 			MOrder order = orderLine.getParent();
-			log.info("Deleting related lines for: " + product.getName() + " in order: " + order.get_ID());
+			if (log.isLoggable(Level.INFO))
+				log.info("Deleting related lines for: " + product.getName() + " in order: " + order.get_ID());
 
 			//If the change is made when the document is completed don't do anything
 			if (isChanged && !orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
@@ -249,7 +252,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		if (product != null && hasRelatedProducts(product)) {
 			
 			MInvoice invoice = invoiceLine.getParent();
-			log.info("Creating related lines for: " + product.getName() + " in invoice: " + invoice.get_ID());
+			if (log.isLoggable(Level.INFO))
+				log.info("Creating related lines for: " + product.getName() + " in invoice: " + invoice.get_ID());
 			
 			//If the change is made when the document is completed don't do anything
 			if (isChanged && !invoiceLine.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered) &&
@@ -292,7 +296,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		
 		if (product != null && order.getC_POS_ID() == 0 && hasRelatedProducts(product)) {
 			try {
-				log.info("Creating related products for: " + product.getName() + " in order: " + order.get_ID());
+				if (log.isLoggable(Level.INFO))
+					log.info("Creating related products for: " + product.getName() + " in order: " + order.get_ID());
 
 				int lineNo = orderLine.getLine();
 
@@ -319,7 +324,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 						newLine.set_ValueOfColumn(MasterOrderLine_COLUMN_NAME, orderLine.get_ID());
 						newLine.saveEx(order.get_TrxName());
 
-						log.info("A new sales order line was added with product: "+relatedProduct.getRelatedProduct().getName());
+						if (log.isLoggable(Level.INFO))
+							log.info("A new sales order line was added with product: " + relatedProduct.getRelatedProduct_ID());
 					}
 				}
 			} catch (Exception e) {
@@ -355,7 +361,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 			&& (invoiceLine.getM_InOutLine_ID() == 0 || !invoice.isSOTrx())
 			&& !Env.getContext(Env.getCtx(), REVERSAL_CONTEXT_KEY).equals(invoice.get_TrxName())) {
 			try {
-				log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
+				if (log.isLoggable(Level.INFO))
+					log.info("Creating related products for: "+product.getName() + " in invoice: " + invoice.get_ID());
 
 				int lineNo = invoiceLine.getLine();
 
@@ -391,8 +398,9 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 							newLine.setC_OrderLine_ID(orderLineId);
 						}
 						newLine.saveEx(invoice.get_TrxName());
-
-						log.info("A new invoice line was added with product: " + relatedProduct.getRelatedProduct().getName());
+						
+						if (log.isLoggable(Level.INFO))
+							log.info("A new invoice line was added with product: " + relatedProduct.getRelatedProduct_ID());
 					}
 				}
 			} catch (Exception e) {
@@ -411,7 +419,8 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		MProduct product = orderLine.getProduct();
 
 		if (product != null && hasRelatedProducts(product)) {
-			log.info("Modifying related products for: " + product.getName() + " in order: " + order.get_ID());
+			if (log.isLoggable(Level.INFO))
+				log.info("Modifying related products for: " + product.getName() + " in order: " + order.get_ID());
 			
 			for (MRelatedProduct relatedProduct : MRelatedProduct.getRelatedLines(product)) {
 

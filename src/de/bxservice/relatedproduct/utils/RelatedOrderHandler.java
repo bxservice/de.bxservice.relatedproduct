@@ -47,7 +47,7 @@ public class RelatedOrderHandler {
 	 * @param orderLine
 	 * @param type
 	 */
-	public static void createSupplementalOrderLines(MOrderLine orderLine, String type) {
+	public static void createRelatedOrderLines(MOrderLine orderLine, String type) {
 
 		MOrder order = orderLine.getParent();
 		MProduct product = orderLine.getProduct();
@@ -84,7 +84,7 @@ public class RelatedOrderHandler {
 
 						newLine.setPrice();
 						newLine.set_ValueOfColumn(RelatedProductConstants.MasterOrderLine_COLUMN_NAME, orderLine.get_ID());
-						newLine.saveEx(order.get_TrxName());
+						newLine.saveEx();
 
 						if (log.isLoggable(Level.INFO))
 							log.info("A new sales order line was added with product: " + relatedProduct.getRelatedProduct_ID());

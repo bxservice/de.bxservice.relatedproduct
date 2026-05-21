@@ -32,6 +32,10 @@ import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
+import org.compiere.model.MInventory;
+import org.compiere.model.MInventoryLine;
+import org.compiere.model.MMovement;
+import org.compiere.model.MMovementLine;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.PO;
@@ -41,6 +45,8 @@ import org.compiere.util.Msg;
 import org.osgi.service.event.Event;
 
 import de.bxservice.relatedproduct.utils.RelatedInvoiceHandler;
+import de.bxservice.relatedproduct.utils.RelatedInventoryHandler;
+import de.bxservice.relatedproduct.utils.RelatedMovementHandler;
 import de.bxservice.relatedproduct.utils.RelatedOrderHandler;
 import de.bxservice.relatedproduct.utils.RelatedProductConstants;
 
@@ -71,6 +77,18 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MOrderLine.Table_Name);
 		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MOrderLine.Table_Name);
 
+		//Physical Inventory
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInventory.Table_Name);
+		registerTableEvent(IEventTopics.PO_AFTER_NEW, MInventoryLine.Table_Name);
+		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MInventoryLine.Table_Name);
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MInventoryLine.Table_Name);
+
+		//Inventory Movement
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MMovement.Table_Name);
+		registerTableEvent(IEventTopics.PO_AFTER_NEW, MMovementLine.Table_Name);
+		registerTableEvent(IEventTopics.PO_AFTER_CHANGE, MMovementLine.Table_Name);
+		registerTableEvent(IEventTopics.PO_BEFORE_DELETE, MMovementLine.Table_Name);
+
 	} //initialize
 
 	@Override
@@ -86,7 +104,7 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 				(type.equals(IEventTopics.PO_AFTER_CHANGE) 
 						&& po.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)))) {
 
-			RelatedOrderHandler.createSupplementalOrderLines(orderline, type);
+			RelatedOrderHandler.createRelatedOrderLines(orderline, type);
 		}
 		else if (po instanceof MOrderLine orderline &&
 				type.equals(IEventTopics.PO_AFTER_CHANGE) &&
@@ -94,17 +112,45 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 
 			RelatedOrderHandler.updateRelatedLinesQty(orderline);
 		}
-		else if (po instanceof MInvoiceLine && 
+		else if (po instanceof MInvoiceLine invoiceLine && 
 				(type.equals(IEventTopics.PO_AFTER_NEW) || 
 						type.equals(IEventTopics.PO_AFTER_CHANGE))) {
 
-			RelatedInvoiceHandler.createSupplementalInvoiceLines((MInvoiceLine)po, type);
+			RelatedInvoiceHandler.createSupplementalInvoiceLines(invoiceLine, type);
 		}
-		else if ((po instanceof MOrderLine || po instanceof MInvoiceLine) 
+		else if (po instanceof MInventoryLine inventoryLine &&
+				(type.equals(IEventTopics.PO_AFTER_NEW) ||
+				(type.equals(IEventTopics.PO_AFTER_CHANGE)
+						&& po.is_ValueChanged(MInventoryLine.COLUMNNAME_M_Product_ID)))) {
+
+			RelatedInventoryHandler.createRelatedInventoryLines(inventoryLine, type);
+		}
+		else if (po instanceof MInventoryLine inventoryLine &&
+				type.equals(IEventTopics.PO_AFTER_CHANGE) &&
+				po.is_ValueChanged(MInventoryLine.COLUMNNAME_QtyEntered)) {
+
+			RelatedInventoryHandler.updateRelatedLinesQty(inventoryLine);
+		}
+		else if (po instanceof MMovementLine movementLine &&
+				(type.equals(IEventTopics.PO_AFTER_NEW) ||
+				(type.equals(IEventTopics.PO_AFTER_CHANGE)
+						&& po.is_ValueChanged(MMovementLine.COLUMNNAME_M_Product_ID)))) {
+
+			RelatedMovementHandler.createRelatedMovementLines(movementLine, type);
+		}
+		else if (po instanceof MMovementLine movementLine &&
+				type.equals(IEventTopics.PO_AFTER_CHANGE) &&
+				po.is_ValueChanged(MMovementLine.COLUMNNAME_MovementQty)) {
+
+			RelatedMovementHandler.updateRelatedLinesQty(movementLine);
+		}
+		else if ((po instanceof MOrderLine || po instanceof MInvoiceLine
+				|| po instanceof MInventoryLine || po instanceof MMovementLine)
 				&& type.equals(IEventTopics.PO_BEFORE_DELETE)) {
 			nonDeleteRelatedLines(po);
 		}
-		else if ((po instanceof MOrder || po instanceof MInvoice) 
+		else if ((po instanceof MOrder || po instanceof MInvoice
+				|| po instanceof MInventory || po instanceof MMovement)
 				&& type.equals(IEventTopics.PO_BEFORE_DELETE)) {
 			allowDeletion(po);
 		}
@@ -135,10 +181,12 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	private void allowDeletion(PO po) {
 		if (po instanceof MOrder order)
 			RelatedOrderHandler.clearMasterOrderLineReferences(order);
-
 		else if (po instanceof MInvoice invoice)
 			RelatedInvoiceHandler.clearMasterInvoiceLineReferences(invoice);
-		
+		else if (po instanceof MInventory inventory)
+			RelatedInventoryHandler.clearMasterInventoryLineReferences(inventory);
+		else if (po instanceof MMovement movement)
+			RelatedMovementHandler.clearMasterMovementLineReferences(movement);
 	} //allowDeletion
 
 
@@ -147,14 +195,15 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	 * @param po
 	 */
 	private void deleteRelatedLines(PO po) {
-
 		if (po instanceof MOrderLine orderLine)
 			RelatedOrderHandler.deleteRelatedOrderLines(orderLine, false);
-
 		else if (po instanceof MInvoiceLine invoiceLine)
-			 RelatedInvoiceHandler.deleteRelatedInvoiceLines(invoiceLine, false);
-	
-	}//deleteSupplementalLines
+			RelatedInvoiceHandler.deleteRelatedInvoiceLines(invoiceLine, false);
+		else if (po instanceof MInventoryLine inventoryLine)
+			RelatedInventoryHandler.deleteRelatedInventoryLines(inventoryLine, false);
+		else if (po instanceof MMovementLine movementLine)
+			RelatedMovementHandler.deleteRelatedMovementLines(movementLine, false);
+	} //deleteRelatedLines
 	
 	/**
 	 * Don't let the supplementary lines be deleted.
@@ -162,11 +211,13 @@ public class ValidatorRelatedProduct extends AbstractEventHandler{
 	 * @param po
 	 */
 	private void nonDeleteRelatedLines(PO po) {
-		if ((po instanceof MOrderLine && po.get_Value(RelatedProductConstants.MasterOrderLine_COLUMN_NAME) != null) 
-				|| (po instanceof MInvoiceLine && po.get_Value(RelatedProductConstants.MasterInvoiceLine_COLUMN_NAME) != null))
+		if ((po instanceof MOrderLine    && po.get_Value(RelatedProductConstants.MasterOrderLine_COLUMN_NAME)     != null)
+				|| (po instanceof MInvoiceLine  && po.get_Value(RelatedProductConstants.MasterInvoiceLine_COLUMN_NAME)  != null)
+				|| (po instanceof MInventoryLine && po.get_Value(RelatedProductConstants.MasterInventoryLine_COLUMN_NAME) != null)
+				|| (po instanceof MMovementLine  && po.get_Value(RelatedProductConstants.MasterMovementLine_COLUMN_NAME)  != null))
 			throw new AdempiereException(Msg.getMsg(Env.getLanguage(Env.getCtx()), "BAY_SupplementalProducts"));
-		else 
+		else
 			deleteRelatedLines(po);
-	} //nonDeletingSupplementalLines
+	} //nonDeleteRelatedLines
 	
 }

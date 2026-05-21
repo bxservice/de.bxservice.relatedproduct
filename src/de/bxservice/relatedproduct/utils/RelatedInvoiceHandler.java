@@ -50,8 +50,8 @@ public class RelatedInvoiceHandler {
 	 */
 	public static void createSupplementalInvoiceLines(MInvoiceLine invoiceLine, String type) {
 
-		MInvoice invoice = MInvoice.get(invoiceLine.getC_Invoice_ID());
-		MProduct product = MProduct.get(invoiceLine.getM_Product_ID());
+		MInvoice invoice = invoiceLine.getParent();
+		MProduct product = invoiceLine.getProduct();
 		
 		if (product != null 
 			&& MRelatedProduct.hasRelatedProducts(product)
@@ -98,7 +98,7 @@ public class RelatedInvoiceHandler {
 
 							newLine.setC_OrderLine_ID(orderLineId);
 						}
-						newLine.saveEx(invoice.get_TrxName());
+						newLine.saveEx();
 						
 						if (log.isLoggable(Level.INFO))
 							log.info("A new invoice line was added with product: " + relatedProduct.getRelatedProduct_ID());

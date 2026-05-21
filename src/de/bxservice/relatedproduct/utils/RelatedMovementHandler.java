@@ -27,7 +27,6 @@ package de.bxservice.relatedproduct.utils;
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.logging.Level;
-import java.util.logging.Level;
 
 import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;

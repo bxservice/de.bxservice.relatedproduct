@@ -33,7 +33,7 @@ import org.compiere.model.MProduct;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_RelatedProduct;
 
-public class MRelatedProduct extends X_M_RelatedProduct{
+public class MRelatedProduct extends X_M_RelatedProduct {
 
 	private static final long serialVersionUID = -8042349333502294418L;
 	
@@ -72,4 +72,26 @@ public class MRelatedProduct extends X_M_RelatedProduct{
 
 		return list;
 	}	//	getRelatedLines
+	
+	/**
+	 * Check if a product has related supplemental products.
+	 *
+	 * @param product the product to check
+	 * @return true if the product has at least one active related product, false otherwise
+	 */
+	public static boolean hasRelatedProducts(MProduct product) {
+	    return !getRelatedLines(product).isEmpty();
+	}
+	
+	/**
+	 * The conditional UOM works to check if the parent product has that UOM the related product is created. 
+	 * If it's blank it's always created.
+	 * @param lineC_UOM_ID
+	 * @return true if a related product must be created based on the UOM of the line 
+	 */
+	public boolean isConditionalUOM(int lineC_UOM_ID) {
+		int conditionalUOM = get_ValueAsInt("C_UOM_ID");
+		return conditionalUOM == 0 || conditionalUOM == lineC_UOM_ID; 
+	}
+
 }
